@@ -11,9 +11,9 @@
 // const char *password = "word_dawg1999";
 
 #define LED 2
-#define pinMotionSensor 16
+#define pinMotionSensor 4
 #define pinRelayShocker 5
-#define pinReserved 4
+// #define pinReserved 16
 
 AsyncWebServer server(80);
 
@@ -112,9 +112,6 @@ void setup()
   catcherStatus.Detected = 0;
 }
 
-bool IsSchedule1Activated = false;
-int counter = 0;
-
 int firstDetect = -1;
 int ShokerOn = 0;
 bool IsShokerOn = false;
@@ -122,6 +119,7 @@ unsigned long prevMS = 0;
 unsigned long startMotionSensorDetMS = 0;
 unsigned long startShockerMS = 0;
 unsigned long lastMtSensReadMS = 0;
+unsigned long lastMtSensReadMS2 = 0;
 int ledState = LOW;
 
 void loop()
@@ -176,6 +174,17 @@ void loop()
     {
       startMotionSensorDetMS = 0;
     }
+    Serial.println(currentMS);
+    Serial.println(lastMtSensReadMS);
+    Serial.println("WiFi status: " + String(WiFi.status()));
+    Serial.println("#######");
     lastMtSensReadMS = currentMS;
   }
 }
+
+// ####### Deep Sleep for 30 seconds ###############
+// if (currentMS - lastMtSensReadMS2 > 30000)
+// {
+//   ESP.deepSleep(30e6);
+//   lastMtSensReadMS2 = currentMS;
+// }
