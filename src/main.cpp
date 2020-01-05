@@ -6,7 +6,9 @@
 #include "ArduinoOTA.h"
 #include <ESPAsyncWebServer.h>
 #include "GlobalConfig.h"
+#include <LinkedList.h>
 
+//
 // const char *ssid = "Sonoma #3 Google Wifi";
 // const char *password = "word_dawg1999";
 
@@ -16,6 +18,14 @@
 // #define pinReserved 16
 
 AsyncWebServer server(80);
+
+class TRPlog
+{
+public:
+  tm detectedDTM;
+};
+
+ll::LinkedList<TRPlog *> trpLogList = ll::LinkedList<TRPlog *>();
 
 struct CatcherStatus
 {
@@ -42,6 +52,11 @@ void setup()
   pinMode(pinMotionSensor, INPUT);
   pinMode(pinRelayShocker, OUTPUT);
 
+  IPAddress ip(192, 168, 86, 120);
+  IPAddress gateway(192, 168, 86, 1);
+  IPAddress subnet(255, 255, 255, 0);
+
+  WiFi.config(ip, gateway, subnet);
   WiFi.begin(Config.ssid, Config.password);
 
   if (WiFi.waitForConnectResult() != WL_CONNECTED)
@@ -93,18 +108,25 @@ void setup()
     Serial.println("Get requested: ");
     struct tm *timeinfo;
     GetLocalTime(timeinfo);
-    // try
-    // {
-    //   time(&now);
-    //   timeinfo = localtime(&now);
-    // }
-    // catch (exception err)
-    // {
-    //   Serial.println(err.what());
-    // }
+
+    String pageHead = "<html><head></head><body>";
+
+    String pageLog = "";
+    for (int i = 0; i < trpLogList.size(); i++)
+    {
+      TRPlog l = *trpLogList.get(i);
+      pageLog += "<div>" + String(l.detectedDTM.tm_hour) + ":" + String(l.detectedDTM.tm_min) + ":" + String(l.detectedDTM.tm_sec) + "</div>";
+    }
+
+    String pageBottom = "<div>Time: #time</div>"
+                        "<div>Total detected: #totaldetected</div>"
+                        "</body</html>";
+    String page;
+    page = pageHead + pageLog + pageBottom;
+
     char timeStringBuff[150]; //50 chars should be enough
     // strftime(timeStringBuff, sizeof(timeStringBuff), "%A, %B %d %Y %H:%M:%S", timeinfo);
-    request->send(200, "text/plain", "Hello, Local Time: " + String(timeStringBuff) + " Detected: " + String(catcherStatus.Detected) + " LastTimeDetected: " + String(catcherStatus.lastTimeDetected.tm_hour) + ":" + String(catcherStatus.lastTimeDetected.tm_min));
+    request->send(200, "text/html", page);
   });
 
   server.begin();
@@ -168,6 +190,9 @@ void loop()
         GetLocalTime(timeinfo);
         catcherStatus.Detected++;
         // catcherStatus.lastTimeDetected = &timeinfo;
+        TRPlog *trpLog;
+        trpLog->detectedDTM = *timeinfo;
+        trpLogList.add(trpLog);
       }
     }
     else
