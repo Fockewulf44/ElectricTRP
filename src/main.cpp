@@ -25,23 +25,23 @@ public:
   tm detectedDTM;
 };
 
-ll::LinkedList<TRPlog *> trpLogList = ll::LinkedList<TRPlog *>();
+ll::LinkedList<TRPlog> trpLogList = ll::LinkedList<TRPlog>();
 
-struct CatcherStatus
+struct TRPstatus
 {
   int Detected;
   tm lastTimeDetected;
 };
 
-CatcherStatus catcherStatus;
+TRPstatus trpStatus;
 
 void GetLocalTime(tm *ti)
 {
   time_t now;
-  struct tm *timeinfo;
+  struct tm timeinfo;
   time(&now);
-  timeinfo = localtime(&now);
-  ti = timeinfo;
+  timeinfo = *localtime(&now);
+  ti = &timeinfo;
 }
 
 void setup()
@@ -64,7 +64,16 @@ void setup()
     Serial.printf("WiFi Failed!\n");
     return;
   }
-  configTime(-28800, 0, "north-america.pool.ntp.org");
+  // configTime(-28800, 0, "pool.ntp.org");
+  configTime(-28800, 0, "64.22.253.155");
+  int timeSyncCounter = 0;
+  while (time(nullptr) <= 100000 && timeSyncCounter < 25)
+  {
+    Serial.println();
+    Serial.print(".");
+    timeSyncCounter++;
+    delay(300);
+  }
 
   Serial.println();
   Serial.print("IP Address: ");
@@ -106,21 +115,28 @@ void setup()
 
   server.on("/getStatus", HTTP_GET, [](AsyncWebServerRequest *request) {
     Serial.println("Get requested: ");
+    time_t now;
     struct tm *timeinfo;
-    GetLocalTime(timeinfo);
+    time(&now);
+    timeinfo = localtime(&now);
 
     String pageHead = "<html><head></head><body>";
 
     String pageLog = "";
     for (int i = 0; i < trpLogList.size(); i++)
     {
-      TRPlog l = *trpLogList.get(i);
-      pageLog += "<div>" + String(l.detectedDTM.tm_hour) + ":" + String(l.detectedDTM.tm_min) + ":" + String(l.detectedDTM.tm_sec) + "</div>";
+      TRPlog log = trpLogList.get(i);
+      pageLog += "<div>" + String(log.detectedDTM.tm_hour) + ":" + String(log.detectedDTM.tm_min) + ":" + String(log.detectedDTM.tm_sec) + "</div>";
+
+      // pageLog += "<div>" + String(now) + ":" + String(log.detectedDTM.tm_min) + ":" + String(log.detectedDTM.tm_sec) + "</div>";
     }
 
     String pageBottom = "<div>Time: #time</div>"
                         "<div>Total detected: #totaldetected</div>"
                         "</body</html>";
+
+    pageBottom.replace("#time", String(timeinfo->tm_hour) + ":" + String(timeinfo->tm_min) + ":" + String(timeinfo->tm_sec));
+    pageBottom.replace("#totaldetected", String(trpStatus.Detected));
     String page;
     page = pageHead + pageLog + pageBottom;
 
@@ -131,7 +147,7 @@ void setup()
 
   server.begin();
 
-  catcherStatus.Detected = 0;
+  trpStatus.Detected = 0;
 }
 
 int firstDetect = -1;
@@ -165,7 +181,7 @@ void loop()
     {
       IsShokerOn = false;
       startShockerMS = 0;
-      digitalWrite(pinRelayShocker, LOW);
+      // digitalWrite(pinRelayShocker, LOW);
       digitalWrite(LED, HIGH);
     }
   }
@@ -183,15 +199,17 @@ void loop()
       {
         IsShokerOn = true;
         startMotionSensorDetMS = 0;
-        digitalWrite(pinRelayShocker, HIGH);
+        // digitalWrite(pinRelayShocker, HIGH);
         digitalWrite(LED, LOW);
 
+        time_t now;
         struct tm *timeinfo;
-        GetLocalTime(timeinfo);
-        catcherStatus.Detected++;
+        time(&now);
+        timeinfo = localtime(&now);
+        trpStatus.Detected++;
         // catcherStatus.lastTimeDetected = &timeinfo;
-        TRPlog *trpLog;
-        trpLog->detectedDTM = *timeinfo;
+        TRPlog trpLog;
+        trpLog.detectedDTM = *timeinfo;
         trpLogList.add(trpLog);
       }
     }
@@ -202,6 +220,9 @@ void loop()
     Serial.println(currentMS);
     Serial.println(lastMtSensReadMS);
     Serial.println("WiFi status: " + String(WiFi.status()));
+
+    time_t now = time(nullptr);
+    Serial.println(ctime(&now));
     Serial.println("#######");
     lastMtSensReadMS = currentMS;
   }
