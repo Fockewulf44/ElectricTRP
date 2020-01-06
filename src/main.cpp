@@ -8,9 +8,6 @@
 #include "GlobalConfig.h"
 #include <LinkedList.h>
 
-//
-// const char *ssid = "Sonoma #3 Google Wifi";
-// const char *password = "word_dawg1999";
 
 #define LED 2
 #define pinMotionSensor 4
