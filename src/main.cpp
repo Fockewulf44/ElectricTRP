@@ -8,7 +8,6 @@
 #include "GlobalConfig.h"
 #include <LinkedList.h>
 
-
 #define LED 2
 #define pinMotionSensor 4
 #define pinRelayShocker 5
@@ -32,13 +31,12 @@ struct TRPstatus
 
 TRPstatus trpStatus;
 
-void GetLocalTime(tm *ti)
+String GetLocalTime(struct tm *timeInfo)
 {
   time_t now;
-  struct tm timeinfo;
   time(&now);
-  timeinfo = *localtime(&now);
-  ti = &timeinfo;
+  localtime_r(&now, timeInfo);
+  return String(timeInfo->tm_hour) + ":" + String(timeInfo->tm_min) + ":" + String(timeInfo->tm_sec);
 }
 
 void setup()
@@ -161,12 +159,7 @@ void loop()
 {
   ArduinoOTA.handle();
   unsigned long currentMS = millis();
-
-  // time_t now;
-  // struct tm *timeinfo;
-  // time(&now);
-  // timeinfo = localtime(&now);
-  // unsigned long currentMS = millis();
+  struct tm timeinfo;  
 
   if (IsShokerOn)
   {
@@ -198,15 +191,12 @@ void loop()
         startMotionSensorDetMS = 0;
         // digitalWrite(pinRelayShocker, HIGH);
         digitalWrite(LED, LOW);
-
-        time_t now;
-        struct tm *timeinfo;
-        time(&now);
-        timeinfo = localtime(&now);
+        
+        GetLocalTime(&timeinfo);
         trpStatus.Detected++;
-        // catcherStatus.lastTimeDetected = &timeinfo;
+
         TRPlog trpLog;
-        trpLog.detectedDTM = *timeinfo;
+        trpLog.detectedDTM = timeinfo;
         trpLogList.add(trpLog);
       }
     }
@@ -217,9 +207,11 @@ void loop()
     Serial.println(currentMS);
     Serial.println(lastMtSensReadMS);
     Serial.println("WiFi status: " + String(WiFi.status()));
-
-    time_t now = time(nullptr);
-    Serial.println(ctime(&now));
+  
+    if (currentMS > 10000)
+    {
+      Serial.println(GetLocalTime(&timeinfo));
+    }
     Serial.println("#######");
     lastMtSensReadMS = currentMS;
   }
